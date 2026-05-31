@@ -8,7 +8,8 @@ import BusTimeScreen from '../screens/BusTimeScreen';
 import WeatherScreen from '../screens/WeatherScreen';
 import EarthquakeScreen from '../screens/EarthquakeScreen';
 import EmergencyNumbersScreen from '../screens/EmergencyNumbersScreen';
-import EventsScreen from "../screens/EventsScreen";
+import EventsScreen from '../screens/EventsScreen';
+import EventDetailScreen from '../screens/EventsDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -76,6 +77,13 @@ export default function AppNavigator() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+  name="EventDetail"
+  component={EventDetailScreen}
+  options={{
+    headerShown: false,
+  }}
+/>
         <Stack.Screen
           name="Bus"
           component={BusTimeScreen}
