@@ -5,3 +5,4 @@
 5. hafta : https://drive.google.com/file/d/1arU17t8k6iUIMOl9Hk7dHzJgg2jAWqRe/view?usp=drivesdk
 6. hafta : 
 https://drive.google.com/file/d/1SZL8g9apVVAu594TVEFCJx9vbgVKjG7D/view?usp=drivesdk
+7. hafta : https://drive.google.com/file/d/1LvOAcKsixZLyLbDFCDJE-fFU8W-qzIP2/view?usp=sharing
