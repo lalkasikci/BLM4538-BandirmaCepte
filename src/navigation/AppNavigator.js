@@ -1,15 +1,20 @@
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import NewsDetailScreen from '../screens/NewsDetailScreen';
-import HomeScreen from '../screens/HomeScreen';
-import NewsScreen from '../screens/NewsScreen';
-import PharmacyScreen from '../screens/PharmacyScreen';
-import BusTimeScreen from '../screens/BusTimeScreen';
-import WeatherScreen from '../screens/WeatherScreen';
-import EarthquakeScreen from '../screens/EarthquakeScreen';
-import EmergencyNumbersScreen from '../screens/EmergencyNumbersScreen';
-import EventsScreen from '../screens/EventsScreen';
-import EventDetailScreen from '../screens/EventsDetailScreen';
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+
+import LoginScreen from "../screens/LoginScreen";
+import RegisterScreen from "../screens/RegisterScreen";
+
+import HomeScreen from "../screens/HomeScreen";
+import WeatherScreen from "../screens/WeatherScreen";
+import EarthquakeScreen from "../screens/EarthquakeScreen";
+import NewsScreen from "../screens/NewsScreen";
+import NewsDetailScreen from "../screens/NewsDetailScreen";
+import PharmacyScreen from "../screens/PharmacyScreen";
+import BusTimeScreen from "../screens/BusTimeScreen";
+import EmergencyNumbersScreen from "../screens/EmergencyNumbersScreen";
+import EventsScreen from "../screens/EventsScreen";
+import EventDetailScreen from "../screens/EventsDetailScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -17,31 +22,30 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
+        initialRouteName="Login"
         screenOptions={{
-          headerStyle: {
-            backgroundColor: '#F5F7FC',
-          },
-          headerShadowVisible: false,
-          headerTintColor: '#182033',
-          headerTitleStyle: {
-            fontWeight: '700',
-            fontSize: 18,
-          },
-          contentStyle: {
-            backgroundColor: '#F5F7FC',
-          },
+          headerShown: false,
         }}
       >
         <Stack.Screen
-          name="Home"
-          component={HomeScreen}
+          name="Login"
+          component={LoginScreen}
           options={{
             headerShown: false,
           }}
         />
+
         <Stack.Screen
-          name="NewsDetail"
-          component={NewsDetailScreen}
+          name="Register"
+          component={RegisterScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
           options={{
             headerShown: false,
           }}
@@ -59,7 +63,7 @@ export default function AppNavigator() {
           name="Earthquake"
           component={EarthquakeScreen}
           options={{
-           headerShown: false,
+            headerShown: false,
           }}
         />
 
@@ -70,6 +74,15 @@ export default function AppNavigator() {
             headerShown: false,
           }}
         />
+
+        <Stack.Screen
+          name="NewsDetail"
+          component={NewsDetailScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+
         <Stack.Screen
           name="Pharmacy"
           component={PharmacyScreen}
@@ -77,13 +90,7 @@ export default function AppNavigator() {
             headerShown: false,
           }}
         />
-        <Stack.Screen
-  name="EventDetail"
-  component={EventDetailScreen}
-  options={{
-    headerShown: false,
-  }}
-/>
+
         <Stack.Screen
           name="Bus"
           component={BusTimeScreen}
@@ -91,21 +98,30 @@ export default function AppNavigator() {
             headerShown: false,
           }}
         />
-        <Stack.Screen 
-        name="Emergency" 
-        component={EmergencyNumbersScreen}
-        options={{
-        headerShown: false,
-        }}
-            />
-        <Stack.Screen 
-      name="Events" 
-      component={EventsScreen} 
-      options={{
-        headerShown: false,
-      }}
-/>
 
+        <Stack.Screen
+          name="Emergency"
+          component={EmergencyNumbersScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        <Stack.Screen
+          name="Events"
+          component={EventsScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+
+        <Stack.Screen
+          name="EventDetail"
+          component={EventDetailScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
