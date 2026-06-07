@@ -2,60 +2,118 @@ const API_KEY = 'd4ce58291563d75e99b7ef190f9b155b';
 const BANDIRMA_LAT = 40.3522;
 const BANDIRMA_LON = 27.9767;
 
-export async function getBandirmaWeather() {
-  const url = `https://api.openweathermap.org/data/2.5/weather?lat=${BANDIRMA_LAT}&lon=${BANDIRMA_LON}&appid=${API_KEY}&units=metric&lang=tr`;
-  const response = await fetch(url);
+const CACHE_DURATION_MS = 5 * 60 * 1000;
 
-  if (!response.ok) {
-    throw new Error('Güncel hava durumu verisi alınamadı');
+let currentWeatherCache = null;
+let currentWeatherCacheTime = 0;
+
+let forecastCache = null;
+let forecastCacheTime = 0;
+
+function isCacheValid(cacheTime) {
+  return Date.now() - cacheTime < CACHE_DURATION_MS;
+}
+
+async function fetchWithTimeout(url, timeoutMs = 8000) {
+  return Promise.race([
+    fetch(url),
+
+    new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("Hava durumu isteği zaman aşımına uğradı."));
+      }, timeoutMs);
+    }),
+  ]);
+}
+
+export async function getBandirmaWeather() {
+  if (currentWeatherCache && isCacheValid(currentWeatherCacheTime)) {
+    return currentWeatherCache;
   }
 
-  return await response.json();
+  const url =
+    `https://api.openweathermap.org/data/2.5/weather` +
+    `?lat=${BANDIRMA_LAT}` +
+    `&lon=${BANDIRMA_LON}` +
+    `&appid=${API_KEY}` +
+    `&units=metric` +
+    `&lang=tr`;
+
+  const response = await fetchWithTimeout(url);
+
+  if (!response.ok) {
+    throw new Error("Güncel hava durumu verisi alınamadı.");
+  }
+
+  const data = await response.json();
+
+  currentWeatherCache = data;
+  currentWeatherCacheTime = Date.now();
+
+  return data;
 }
 
 export async function getBandirmaForecast() {
-  const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${BANDIRMA_LAT}&lon=${BANDIRMA_LON}&appid=${API_KEY}&units=metric&lang=tr`;
+  if (forecastCache && isCacheValid(forecastCacheTime)) {
+    return forecastCache;
+  }
 
-  const response = await fetch(url);
+  const url =
+    `https://api.openweathermap.org/data/2.5/forecast` +
+    `?lat=${BANDIRMA_LAT}` +
+    `&lon=${BANDIRMA_LON}` +
+    `&appid=${API_KEY}` +
+    `&units=metric` +
+    `&lang=tr`;
+
+  const response = await fetchWithTimeout(url);
 
   if (!response.ok) {
-    throw new Error('5 günlük tahmin verisi alınamadı');
+    throw new Error("5 günlük tahmin verisi alınamadı.");
   }
 
   const data = await response.json();
 
   if (!data.list || !Array.isArray(data.list)) {
-    throw new Error('Tahmin verisi formatı beklenenden farklı');
+    throw new Error("Tahmin verisi formatı beklenenden farklı.");
   }
 
-  return simplifyForecast(data.list);
+  const simplifiedForecast = simplifyForecast(data.list);
+
+  forecastCache = simplifiedForecast;
+  forecastCacheTime = Date.now();
+
+  return simplifiedForecast;
 }
 
 function simplifyForecast(list) {
   const dailyMap = {};
 
   for (const item of list) {
-    const date = item.dt_txt?.split(' ')[0];
-    const time = item.dt_txt?.split(' ')[1];
+    const date = item.dt_txt?.split(" ")[0];
+    const time = item.dt_txt?.split(" ")[1];
 
-    if (!date) continue;
+    if (!date) {
+      continue;
+    }
 
     if (!dailyMap[date]) {
       dailyMap[date] = item;
     }
 
-    // 12:00 verisini yakalarsak o günü onunla temsil et
-    if (time === '12:00:00') {
+    if (time === "12:00:00") {
       dailyMap[date] = item;
     }
   }
 
-  return Object.values(dailyMap).slice(0, 5).map((item) => ({
-    date: item.dt_txt,
-    temp: Math.round(item.main.temp),
-    tempMin: Math.round(item.main.temp_min),
-    tempMax: Math.round(item.main.temp_max),
-    description: item.weather?.[0]?.description || '',
-    main: item.weather?.[0]?.main || '',
-  }));
+  return Object.values(dailyMap)
+    .slice(0, 5)
+    .map((item) => ({
+      date: item.dt_txt,
+      temp: Math.round(item.main.temp),
+      tempMin: Math.round(item.main.temp_min),
+      tempMax: Math.round(item.main.temp_max),
+      description: item.weather?.[0]?.description || "",
+      main: item.weather?.[0]?.main || "",
+    }));
 }

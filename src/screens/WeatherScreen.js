@@ -13,31 +13,47 @@ import {
 } from '../services/weatherService';
 
 export default function WeatherScreen({ navigation }) {
-  const [weather, setWeather] = useState(null);
-  const [forecast, setForecast] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+const [weather, setWeather] = useState(null);
+const [forecast, setForecast] = useState([]);
+
+const [loading, setLoading] = useState(true);
+const [forecastLoading, setForecastLoading] = useState(true);
+
+const [error, setError] = useState("");
+const [forecastError, setForecastError] = useState("");
 
   useEffect(() => {
-    async function fetchWeatherData() {
-      try {
-        const [currentData, forecastData] = await Promise.all([
-          getBandirmaWeather(),
-          getBandirmaForecast(),
-        ]);
+  async function loadCurrentWeather() {
+    try {
+      const currentData = await getBandirmaWeather();
 
-        setWeather(currentData);
-        setForecast(forecastData);
-      } catch (err) {
-        console.log('WEATHER ERROR:', err);
-        setError('Veri alınırken hata oluştu');
-      } finally {
-        setLoading(false);
-      }
+      setWeather(currentData);
+    } catch (err) {
+      console.log("CURRENT WEATHER ERROR:", err);
+
+      setError("Güncel hava durumu bilgisi alınamadı.");
+    } finally {
+      setLoading(false);
     }
+  }
 
-    fetchWeatherData();
-  }, []);
+  async function loadForecast() {
+    try {
+      const forecastData = await getBandirmaForecast();
+
+      setForecast(forecastData);
+    } catch (err) {
+      console.log("FORECAST ERROR:", err);
+
+      setForecastError("5 günlük tahmin bilgisi alınamadı.");
+    } finally {
+      setForecastLoading(false);
+    }
+  }
+
+  loadCurrentWeather();
+  loadForecast();
+}, []);
 
   function getWeatherEmoji(main) {
     switch (main?.toLowerCase()) {
@@ -156,25 +172,50 @@ export default function WeatherScreen({ navigation }) {
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>5 Günlük Tahmin</Text>
+<Text style={styles.sectionTitle}>5 Günlük Tahmin</Text>
 
-      <View style={styles.forecastList}>
-        {forecast.map((item, index) => (
-          <View key={index} style={styles.forecastCard}>
-            <Text style={styles.forecastDay}>{formatDay(item.date)}</Text>
-            <Text style={styles.forecastEmoji}>
-              {getWeatherEmoji(item.main)}
-            </Text>
-            <Text style={styles.forecastTemp}>{item.temp}°</Text>
-            <Text style={styles.forecastRange}>
-              {item.tempMin}° / {item.tempMax}°
-            </Text>
-            <Text style={styles.forecastDesc} numberOfLines={2}>
-              {item.description}
-            </Text>
-          </View>
-        ))}
+{forecastLoading ? (
+  <View style={styles.forecastLoadingArea}>
+    <ActivityIndicator size="small" color="#5B6EF5" />
+
+    <Text style={styles.forecastLoadingText}>
+      Tahmin bilgileri yükleniyor...
+    </Text>
+  </View>
+) : forecastError ? (
+  <Text style={styles.forecastErrorText}>
+    {forecastError}
+  </Text>
+) : (
+  <View style={styles.forecastList}>
+    {forecast.map((item, index) => (
+      <View key={index} style={styles.forecastCard}>
+        <Text style={styles.forecastDay}>
+          {formatDay(item.date)}
+        </Text>
+
+        <Text style={styles.forecastEmoji}>
+          {getWeatherEmoji(item.main)}
+        </Text>
+
+        <Text style={styles.forecastTemp}>
+          {item.temp}°
+        </Text>
+
+        <Text style={styles.forecastRange}>
+          {item.tempMin}° / {item.tempMax}°
+        </Text>
+
+        <Text
+          style={styles.forecastDesc}
+          numberOfLines={2}
+        >
+          {item.description}
+        </Text>
       </View>
+    ))}
+  </View>
+)}
     </ScrollView>
   );
 }
@@ -205,7 +246,27 @@ const styles = StyleSheet.create({
     color: '#D64545',
     fontWeight: '600',
   },
+forecastLoadingArea: {
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: "#FFFFFF",
+  borderRadius: 14,
+  padding: 14,
+},
 
+forecastLoadingText: {
+  color: "#64748B",
+  fontSize: 14,
+  marginLeft: 10,
+},
+
+forecastErrorText: {
+  color: "#B91C1C",
+  fontSize: 14,
+  backgroundColor: "#FEF2F2",
+  borderRadius: 14,
+  padding: 14,
+},
   topShape: {
     position: 'absolute',
     top: -50,

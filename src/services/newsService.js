@@ -1,8 +1,7 @@
-export async function getBandirmaNews() {
-  const rssUrl = encodeURIComponent('https://www.pandermos.com/rss/');
-  const url = `https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}`;
+import { NEWS_API_URL } from "../config/api";
 
-  const response = await fetch(url);
+export async function getBandirmaNews() {
+  const response = await fetch(NEWS_API_URL);
 
   if (!response.ok) {
     throw new Error(`Haber verisi alınamadı: ${response.status}`);
@@ -10,51 +9,61 @@ export async function getBandirmaNews() {
 
   const data = await response.json();
 
-  if (!data.items || !Array.isArray(data.items)) {
-    throw new Error('Beklenmeyen haber veri formatı');
+  if (!Array.isArray(data)) {
+    throw new Error("Beklenmeyen haber veri formatı");
   }
 
-  const mappedNews = data.items.map((item, index) => ({
-    id: item.guid || item.link || index.toString(),
-    title: item.title || 'Başlık yok',
-    summary: cleanHtml(item.description || item.content || ''),
-    link: item.link || '',
-    image: extractImage(item),
-    publishedAt: item.pubDate || '',
-    source: data.feed?.title || 'Pandermos',
-    isBandirma: isBandirmaRelated(item),
-  }));
+  return data.map((item, index) => {
+    const publishedAt = item.publishedAt || "";
 
-  const bandirmaNews = mappedNews.filter((item) => item.isBandirma);
-  const otherNews = mappedNews.filter((item) => !item.isBandirma);
-
-  
-  return [...bandirmaNews, ...otherNews].slice(0, 15);
+    return {
+      id: item.id || String(index),
+      title: item.title || "Başlık bulunamadı",
+      summary: item.summary || "Özet bulunamadı",
+      link: item.link || "",
+      image: item.image || "",
+      imageUrl: item.image || "",
+      publishedAt,
+      timeAgo: formatTimeAgo(publishedAt),
+      source: item.source || "Pandermos",
+    };
+  });
 }
 
-function isBandirmaRelated(item) {
-  const text = `${item.title || ''} ${item.description || ''} ${item.link || ''}`.toLowerCase();
+function formatTimeAgo(dateString) {
+  if (!dateString) {
+    return "";
+  }
 
-  return (
-    text.includes('bandırma') ||
-    text.includes('bandirma') ||
-    text.includes('/bandirma')
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const differenceInMinutes = Math.floor(
+    (Date.now() - date.getTime()) / 60000
   );
-}
 
-function cleanHtml(html) {
-  return html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+  if (differenceInMinutes < 1) {
+    return "Az önce";
+  }
 
-function extractImage(item) {
-  if (item.enclosure?.link) return item.enclosure.link;
-  if (item.thumbnail) return item.thumbnail;
+  if (differenceInMinutes < 60) {
+    return `${differenceInMinutes} dakika önce`;
+  }
 
-  const match = item.description?.match(/<img[^>]+src="([^">]+)"/);
-  return match ? match[1] : null;
+  const differenceInHours = Math.floor(
+    differenceInMinutes / 60
+  );
+
+  if (differenceInHours < 24) {
+    return `${differenceInHours} saat önce`;
+  }
+
+  const differenceInDays = Math.floor(
+    differenceInHours / 24
+  );
+
+  return `${differenceInDays} gün önce`;
 }

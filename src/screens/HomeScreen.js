@@ -12,10 +12,20 @@ import {
 import { getBandirmaWeather } from '../services/weatherService';
 import { getEarthquakes } from '../services/earthquakeService';
 import { getBandirmaNews } from '../services/newsService';
-
+import { logoutUser } from '../services/authService';
 const { width: SW } = Dimensions.get('window');
 const H_PAD = 16;
 const INNER = SW - H_PAD * 2;
+function withTimeout(promise, timeoutMs = 10000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('İstek zaman aşımına uğradı.'));
+      }, timeoutMs);
+    }),
+  ]);
+}
 
 /* ─── Animasyon yardımcıları ─────────────────────────── */
 
@@ -77,27 +87,61 @@ export default function HomeScreen({ navigation }) {
     ])).start();
   }, []);
 
+
   useEffect(() => {
-    (async () => {
-      try {
-        const [w, eq, n] = await Promise.all([
-          getBandirmaWeather(), getEarthquakes(), getBandirmaNews(),
-        ]);
-        setWeather(w);
-        setEarthquakes(eq || []);
-        setNews(n || []);
-      } catch (e) {
-        console.log('HOME DATA ERROR:', e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  let finishedRequestCount = 0;
+
+  function finishOneRequest() {
+    finishedRequestCount += 1;
+
+    if (finishedRequestCount === 3) {
+      setLoading(false);
+    }
+  }
+
+  withTimeout(getBandirmaWeather(), 5000)
+    .then((weatherData) => {
+      setWeather(weatherData);
+
+      // Hava durumu geldiyse ana kartı hemen göster.
+      setLoading(false);
+    })
+    .catch((error) => {
+      console.log("HOME WEATHER ERROR:", error);
+    })
+    .finally(finishOneRequest);
+
+  withTimeout(getEarthquakes(), 5000)
+    .then((earthquakeData) => {
+      setEarthquakes(earthquakeData.items || []);
+    })
+    .catch((error) => {
+      console.log("HOME EARTHQUAKE ERROR:", error);
+    })
+    .finally(finishOneRequest);
+
+  withTimeout(getBandirmaNews(), 5000)
+    .then((newsData) => {
+      setNews(newsData || []);
+    })
+    .catch((error) => {
+      console.log("HOME NEWS ERROR:", error);
+    })
+    .finally(finishOneRequest);
+}, []);
 
   function cut(t, max) {
     if (!t) return '';
     return t.length <= max ? t : t.slice(0, max) + '…';
   }
+  async function handleLogout() {
+  await logoutUser();
+
+  navigation.reset({
+    index: 0,
+    routes: [{ name: 'Login' }],
+  });
+}
 
   const temp     = weather ? `${Math.round(weather.main.temp)}°C` : '--';
   const desc     = weather ? (weather.weather?.[0]?.description || '') : '';
@@ -122,14 +166,30 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.wBlob2} />
 
           <View style={styles.weatherHeader}>
-            <View style={styles.logoCircle}>
-              <Image source={require('../../assets/icon.png')} style={styles.logoImg} resizeMode="cover" />
-            </View>
-            <View>
-              <Text style={styles.cityLabel}>BANDIRMA</Text>
-              <Text style={styles.appLabel}>CEPTE</Text>
-            </View>
-          </View>
+  <View style={styles.logoCircle}>
+    <Image
+      source={require('../../assets/icon.png')}
+      style={styles.logoImg}
+      resizeMode="cover"
+    />
+  </View>
+
+  <View style={styles.weatherHeaderTitle}>
+    <Text style={styles.cityLabel}>BANDIRMA</Text>
+    <Text style={styles.appLabel}>CEPTE</Text>
+  </View>
+
+  <Pressable
+  style={styles.logoutIconButton}
+  onPress={(event) => {
+    event.stopPropagation?.();
+    handleLogout();
+  }}
+  accessibilityLabel="Çıkış yap"
+>
+  <Text style={styles.logoutIcon}>⏻</Text>
+</Pressable>
+</View>
 
           <View style={styles.weatherBody}>
             <View>
@@ -168,14 +228,15 @@ export default function HomeScreen({ navigation }) {
                     </View>
                   </View>
                 ))
+                
               : topNews.map((item, i) => (
                   <ScalePressable
                     key={i}
                     style={[styles.newsCard, { width: NEWS_W }]}
                     onPress={() => navigation.navigate('News')}
                   >
-                    {item.imageUrl
-                      ? <Image source={{ uri: item.imageUrl }} style={styles.newsImg} resizeMode="cover" />
+                    {item.image
+                      ? <Image source={{ uri: item.image }} style={styles.newsImg} resizeMode="cover" />
                       : (
                         <View style={[styles.newsImg, styles.newsImgFallback]}>
                           <Text style={{ fontSize: 32 }}>📰</Text>
@@ -318,10 +379,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', opacity: 0.05,
   },
   weatherHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    marginBottom: 18, paddingBottom: 16,
-    borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.2)',
-  },
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 12,
+  marginBottom: 18,
+  paddingBottom: 16,
+  borderBottomWidth: 0.5,
+  borderBottomColor: "rgba(255,255,255,0.2)",
+},
+
+weatherHeaderTitle: {
+  flex: 1,
+},
+
+logoutIconButton: {
+  width: 38,
+  height: 38,
+  borderRadius: 19,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "rgba(255,255,255,0.18)",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.24)",
+},
+
+logoutIcon: {
+  color: "#FFFFFF",
+  fontSize: 19,
+  fontWeight: "900",
+},
   logoCircle: {
     width: 46, height: 46, borderRadius: 23,
     overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.15)',

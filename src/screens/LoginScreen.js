@@ -20,18 +20,22 @@ export default function LoginScreen({ navigation }) {
 
   useEffect(() => {
     async function checkSession() {
-      const token = await getSavedToken();
+      try {
+        const token = await getSavedToken();
 
-      if (token) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "Home" }],
-        });
+        if (token) {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Home" }],
+          });
 
-        return;
+          return;
+        }
+      } catch (error) {
+        console.warn("Oturum kontrolü sırasında hata oluştu:", error);
+      } finally {
+        setCheckingSession(false);
       }
-
-      setCheckingSession(false);
     }
 
     checkSession();

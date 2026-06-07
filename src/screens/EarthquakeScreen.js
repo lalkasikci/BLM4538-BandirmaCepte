@@ -1,165 +1,297 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
   ActivityIndicator,
+  FlatList,
   Pressable,
-} from 'react-native';
-import { getEarthquakes } from '../services/earthquakeService';
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { getEarthquakes } from "../services/earthquakeService";
 
 export default function EarthquakeScreen({ navigation }) {
   const [earthquakes, setEarthquakes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+
+  const [errorMessage, setErrorMessage] = useState("");
+  const [warning, setWarning] = useState("");
+  const [isLive, setIsLive] = useState(true);
+  const [source, setSource] = useState("");
+  const [updatedAt, setUpdatedAt] = useState("");
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const data = await getEarthquakes();
-        setEarthquakes(data);
-        console.log('ILK DEPREM:', data[0]);
-      } catch (err) {
-        console.log('EARTHQUAKE ERROR:', err);
-        setError('Deprem verisi alınamadı');
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    fetchData();
+    loadEarthquakes();
   }, []);
-  function formatDate(item) {
-  const rawDate =
-    item.date ||
-    item.date_time ||
-    item.time ||
-    item.timestamp ||
-    item.created_at;
 
-  if (!rawDate) return 'Tarih yok';
+  async function loadEarthquakes() {
+    try {
+      setLoading(true);
+      setErrorMessage("");
 
-  const date = new Date(rawDate);
+      const result = await getEarthquakes();
 
-  if (isNaN(date)) return String(rawDate);
+      setEarthquakes(result.items || []);
+      setWarning(result.warning || "");
+      setIsLive(result.isLive !== false);
+      setSource(result.source || "AFAD");
+      setUpdatedAt(result.updatedAt || "");
+    } catch (error) {
+      console.log("DEPREM EKRANI HATASI:", error.message);
 
-  return date.toLocaleString('tr-TR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+      setEarthquakes([]);
+      setWarning("");
+      setIsLive(false);
 
+      setErrorMessage(
+        error.message ||
+          "Deprem verilerine şu anda ulaşılamıyor."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const getMagnitudeColor = (mag) => {
-    if (mag >= 5) return '#D64545';
-    if (mag >= 4) return '#F39C12';
-    return '#2E86DE';
-  };
+  function formatDate(dateString) {
+    if (!dateString) {
+      return "Tarih bilgisi bulunamadı";
+    }
+
+    const date = new Date(dateString);
+
+    if (Number.isNaN(date.getTime())) {
+      return dateString;
+    }
+
+    return date.toLocaleString("tr-TR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function formatDistance(distanceKm) {
+    if (!Number.isFinite(distanceKm)) {
+      return "Uzaklık bilgisi bulunamadı";
+    }
+
+    return `${Math.round(distanceKm)} km uzaklıkta`;
+  }
+
+  function formatMagnitude(magnitude) {
+    const numericMagnitude = Number(magnitude);
+
+    if (!Number.isFinite(numericMagnitude)) {
+      return "-";
+    }
+
+    return numericMagnitude.toFixed(1);
+  }
+
+  function getMagnitudeStyle(magnitude) {
+    const numericMagnitude = Number(magnitude);
+
+    if (!Number.isFinite(numericMagnitude)) {
+      return styles.magnitudeLow;
+    }
+
+    if (numericMagnitude >= 4) {
+      return styles.magnitudeHigh;
+    }
+
+    if (numericMagnitude >= 3) {
+      return styles.magnitudeMedium;
+    }
+
+    return styles.magnitudeLow;
+  }
+
+  function renderEarthquakeCard({ item }) {
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardTopRow}>
+          <View style={styles.cardTitleArea}>
+            <Text style={styles.location} numberOfLines={2}>
+              {item.title}
+            </Text>
+
+            <Text style={styles.distance}>
+              {formatDistance(item.distanceKm)}
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.magnitudeBadge,
+              getMagnitudeStyle(item.mag),
+            ]}
+          >
+            <Text style={styles.magnitudeText}>
+              {formatMagnitude(item.mag)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoIcon}>🕒</Text>
+
+          <Text style={styles.infoText}>
+            {formatDate(item.date)}
+          </Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoIcon}>📏</Text>
+
+          <Text style={styles.infoText}>
+            Derinlik:{" "}
+            {item.depth != null
+              ? `${item.depth} km`
+              : "Bilgi bulunamadı"}
+          </Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoIcon}>📡</Text>
+
+          <Text style={styles.infoText}>
+            Kaynak: {item.provider || source || "AFAD"}
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#4A6CF7" />
-        <Text style={styles.loadingText}>Deprem verileri yükleniyor...</Text>
-      </View>
-    );
-  }
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#5361FF" />
 
-  if (error) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
-
-  if (earthquakes.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Bandırma'ya yakın deprem bulunamadı</Text>
+        <Text style={styles.loadingText}>
+          Deprem verileri yükleniyor...
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Pressable
-          style={styles.homeButton}
-          onPress={() => navigation.navigate('Home')}
-        >
-          <Text style={styles.homeButtonIcon}>⌂</Text>
-        </Pressable>
+      <Pressable
+        style={styles.homeButton}
+        onPress={() => navigation.navigate("Home")}
+      >
+        <Text style={styles.homeButtonIcon}>⌂</Text>
+      </Pressable>
 
-        <View style={styles.headerTextArea}>
-          <Text style={styles.pageTitle}>Bandırma'ya Yakın Depremler</Text>
-          <Text style={styles.pageSubtitle}>
-            Bandırma çevresindeki son deprem kayıtları
-          </Text>
-        </View>
+      <View style={styles.headerArea}>
+        <Text style={styles.pageTitle}>
+          Yakındaki Depremler
+        </Text>
+
+        <Text style={styles.pageSubtitle}>
+          Bandırma ve çevresindeki son deprem kayıtları
+        </Text>
       </View>
 
-      <FlatList
-        data={earthquakes}
-        keyExtractor={(item, index) =>
-          item.earthquake_id?.toString() || index.toString()
-        }
-        contentContainerStyle={{ paddingBottom: 20 }}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardTopRow}>
-              <Text style={styles.location} numberOfLines={2}>
-                {item.title || 'Konum bilgisi yok'}
-              </Text>
+      {source ? (
+        <View style={styles.sourceRow}>
+          <View
+            style={[
+              styles.statusDot,
+              isLive
+                ? styles.statusDotLive
+                : styles.statusDotCache,
+            ]}
+          />
 
-              <View
-                style={[
-                  styles.magnitudeBadge,
-                  { backgroundColor: getMagnitudeColor(item.mag || 0) },
-                ]}
-              >
-                <Text style={styles.magnitudeText}>
-                  {item.mag ?? '-'}
-                </Text>
-              </View>
-            </View>
+          <Text style={styles.sourceText}>
+            {isLive
+              ? `Canlı veri kaynağı: ${source}`
+              : `Son başarılı kayıtlar: ${source}`}
+          </Text>
+        </View>
+      ) : null}
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Tarih</Text>
-              <Text style={styles.infoValue}>
-              {formatDate(item)}
-              </Text>
-            </View>
+      {updatedAt ? (
+        <Text style={styles.updatedText}>
+          Son güncelleme: {formatDate(updatedAt)}
+        </Text>
+      ) : null}
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Derinlik</Text>
-              <Text style={styles.infoValue}>
-                {item.depth != null ? `${item.depth} km` : 'Bilinmiyor'}
-              </Text>
-            </View>
+      {warning ? (
+        <View style={styles.warningBox}>
+          <Text style={styles.warningTitle}>
+            Bilgilendirme
+          </Text>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Bandırma'ya Uzaklık</Text>
-              <Text style={styles.infoValue}>
-                {item.distanceKm != null
-                  ? `${item.distanceKm.toFixed(1)} km`
-                  : 'Bilinmiyor'}
-              </Text>
-            </View>
+          <Text style={styles.warningText}>
+            {warning}
+          </Text>
+        </View>
+      ) : null}
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Kaynak</Text>
-              <Text style={styles.infoValue}>
-                {item.provider?.toUpperCase() || 'AFAD'}
-              </Text>
-            </View>
-          </View>
-        )}
-      />
+      {errorMessage ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorTitle}>
+            Bağlantı kurulamadı
+          </Text>
+
+          <Text style={styles.errorText}>
+            {errorMessage}
+          </Text>
+
+          <Pressable
+            style={styles.retryButton}
+            onPress={loadEarthquakes}
+          >
+            <Text style={styles.retryButtonText}>
+              Tekrar Dene
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {!errorMessage && earthquakes.length === 0 ? (
+        <View style={styles.emptyBox}>
+          <Text style={styles.emptyTitle}>
+            Gösterilecek kayıt bulunamadı
+          </Text>
+
+          <Text style={styles.emptyText}>
+            {isLive
+              ? "Bandırma ve çevresinde son 7 gün içinde gösterilecek deprem kaydı bulunamadı."
+              : "AFAD canlı verisine ulaşılamadığı için yakın deprem durumu doğrulanamıyor."}
+          </Text>
+
+          <Pressable
+            style={styles.retryButton}
+            onPress={loadEarthquakes}
+          >
+            <Text style={styles.retryButtonText}>
+              Yenile
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {!errorMessage && earthquakes.length > 0 ? (
+        <FlatList
+          data={earthquakes}
+          keyExtractor={(item, index) =>
+            String(
+              item.earthquake_id ||
+                item.id ||
+                `${item.date}-${index}`
+            )
+          }
+          renderItem={renderEarthquakeCard}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+        />
+      ) : null}
     </View>
   );
 }
@@ -167,118 +299,276 @@ export default function EarthquakeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F7FB',
+    backgroundColor: "#F5F7FC",
     paddingHorizontal: 20,
     paddingTop: 24,
   },
-  centerContainer: {
+
+  center: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F4F7FB',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F5F7FC",
   },
+
   loadingText: {
     marginTop: 12,
-    fontSize: 16,
-    color: '#555',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#D64545',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#1E2A3A',
-  },
-  pageSubtitle: {
+    color: "#475569",
     fontSize: 14,
-    color: '#69748C',
-    marginTop: 4,
-    marginBottom: 18,
+    fontWeight: "600",
   },
-  headerRow: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    marginBottom: 18,
-    gap: 12,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 14,
-  },
-  location: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E2A3A',
-    lineHeight: 22,
-  },
-  magnitudeBadge: {
-    minWidth: 54,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
   homeButton: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#1B1F2A',
-    shadowOffset: { width: 0, height: 4 },
+    alignSelf: "center",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    marginBottom: 14,
+    shadowColor: "#000000",
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 3,
   },
+
   homeButtonIcon: {
-    fontSize: 20,
-    color: '#182033',
-    fontWeight: '800',
+    color: "#182033",
+    fontSize: 24,
+    fontWeight: "900",
   },
-  headerTextArea: {
-    alignItems: 'center',
+
+  headerArea: {
+    alignItems: "center",
+    marginBottom: 12,
   },
-  magnitudeText: {
-    color: '#FFFFFF',
+
+  pageTitle: {
+    color: "#182033",
+    fontSize: 28,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+
+  pageSubtitle: {
+    color: "#64748B",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 5,
+    textAlign: "center",
+  },
+
+  sourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 7,
+  },
+
+  statusDotLive: {
+    backgroundColor: "#16A34A",
+  },
+
+  statusDotCache: {
+    backgroundColor: "#F59E0B",
+  },
+
+  sourceText: {
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  updatedText: {
+    color: "#94A3B8",
+    fontSize: 11,
+    marginBottom: 14,
+    marginTop: 5,
+    textAlign: "center",
+  },
+
+  warningBox: {
+    backgroundColor: "#FFF7ED",
+    borderRadius: 14,
+    marginBottom: 14,
+    padding: 13,
+  },
+
+  warningTitle: {
+    color: "#9A3412",
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+
+  warningText: {
+    color: "#9A3412",
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 19,
+  },
+
+  errorBox: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 16,
+    marginTop: 6,
+    padding: 16,
+  },
+
+  errorTitle: {
+    color: "#B91C1C",
+    fontSize: 15,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+
+  errorText: {
+    color: "#B91C1C",
+    fontSize: 13,
+    lineHeight: 20,
+  },
+
+  emptyBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    marginTop: 6,
+    padding: 16,
+  },
+
+  emptyTitle: {
+    color: "#182033",
+    fontSize: 15,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+
+  emptyText: {
+    color: "#64748B",
+    fontSize: 14,
+    lineHeight: 21,
+  },
+
+  retryButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#5361FF",
+    borderRadius: 12,
+    marginTop: 14,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  listContent: {
+    paddingBottom: 24,
+    paddingTop: 4,
+  },
+
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    marginBottom: 14,
+    padding: 16,
+    shadowColor: "#000000",
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  cardTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+
+  cardTitleArea: {
+    flex: 1,
+    paddingRight: 12,
+  },
+
+  location: {
+    color: "#182033",
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "900",
+    lineHeight: 22,
   },
+
+  distance: {
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 5,
+  },
+
+  magnitudeBadge: {
+    alignItems: "center",
+    borderRadius: 14,
+    justifyContent: "center",
+    minHeight: 46,
+    minWidth: 46,
+    paddingHorizontal: 8,
+  },
+
+  magnitudeLow: {
+    backgroundColor: "#DCFCE7",
+  },
+
+  magnitudeMedium: {
+    backgroundColor: "#FEF3C7",
+  },
+
+  magnitudeHigh: {
+    backgroundColor: "#FEE2E2",
+  },
+
+  magnitudeText: {
+    color: "#182033",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+
+  divider: {
+    backgroundColor: "#E2E8F0",
+    height: 1,
+    marginBottom: 12,
+    marginTop: 14,
+  },
+
   infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    gap: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 7,
   },
-  infoLabel: {
-    fontSize: 13,
-    color: '#69748C',
+
+  infoIcon: {
+    fontSize: 14,
+    marginRight: 7,
   },
-  infoValue: {
+
+  infoText: {
+    color: "#64748B",
+    flex: 1,
     fontSize: 13,
-    color: '#1E2A3A',
-    fontWeight: '600',
-    maxWidth: '65%',
-    textAlign: 'right',
+    lineHeight: 18,
   },
 });
