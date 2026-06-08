@@ -144,11 +144,17 @@ export default function HomeScreen({ navigation }) {
 }
 
   const temp     = weather ? `${Math.round(weather.main.temp)}°C` : '--';
-  const desc     = weather ? (weather.weather?.[0]?.description || '') : '';
-  const humidity = weather ? `Nem: %${weather.main.humidity}` : '';
-  const topEqs   = earthquakes.slice(0, 4);
-  const topNews  = news.slice(0, 3);
+const desc     = weather ? (weather.weather?.[0]?.description || '') : '';
+const humidity = weather ? `Nem: %${weather.main.humidity}` : '';
 
+const todayDate = new Date().toLocaleDateString('tr-TR', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+
+const topEqs   = earthquakes.slice(0, 4);
+const topNews  = news.slice(0, 3);
   /* haber kartı genişliği: 3 kart + boşluklar tam ekranı doldursun */
   const NEWS_W = (INNER - 20) / 2.5; // yatay kaydırmalı, geniş kartlar
 
@@ -195,6 +201,7 @@ export default function HomeScreen({ navigation }) {
             <View>
               <Text style={styles.tempText}>{loading ? '--°C' : temp}</Text>
               <Text style={styles.descText}>{loading ? 'Yükleniyor...' : cut(desc, 22)}</Text>
+              <Text style={styles.dateText}>{todayDate}</Text>
               <Text style={styles.humidText}>{loading ? '' : humidity}</Text>
             </View>
             <Text style={styles.weatherEmoji}>⛅</Text>
@@ -420,6 +427,7 @@ logoutIcon: {
   },
   tempText:  { fontSize: 52, fontWeight: '900', color: '#fff', letterSpacing: -2, lineHeight: 56 },
   descText:  { fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.8)', marginTop: 4, textTransform: 'capitalize' },
+  dateText:  { fontSize: 13, color: 'rgba(255,255,255,0.72)', marginTop: 3, fontWeight: '500', textTransform: 'capitalize' },
   humidText: { fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 3, fontWeight: '500' },
   weatherEmoji: { fontSize: 72, lineHeight: 80 },
 
