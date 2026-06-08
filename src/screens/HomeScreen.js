@@ -16,6 +16,20 @@ import { logoutUser } from '../services/authService';
 const { width: SW } = Dimensions.get('window');
 const H_PAD = 16;
 const INNER = SW - H_PAD * 2;
+const BANDIRMA_FACTS = [
+  "Bandırma'nın antik çağdaki adının Panormos olduğu bilinir. Bu ad, güvenli liman anlamına gelir.",
+  "Bandırma, 17 Eylül 1922 tarihinde işgalden kurtuldu. Bu tarih ilçede her yıl kutlanır.",
+  "Mustafa Kemal Atatürk'ü 19 Mayıs 1919'da Samsun'a götüren vapurun adı Bandırma Vapuru'dur.",
+  "Bandırma Vapuru'nun adı, Marmara kıyısındaki Bandırma ilçesinden gelmektedir.",
+  "Kuşcenneti Millî Parkı, Bandırma'ya yakın en önemli doğal alanlardan biridir.",
+  "Kuşcenneti çevresi, göçmen kuşların dinlenme ve üreme alanlarından biridir.",
+  "Bandırma, İstanbul'dan Güney Marmara'ya deniz yoluyla ulaşımda önemli geçiş noktalarından biridir.",
+  "Kapıdağ Yarımadası, Bandırma'ya yakınlığı nedeniyle doğa ve deniz gezileri için sık tercih edilir.",
+  "Bandırma'ya yakın Kyzikos Antik Kenti, bölgenin tarih boyunca önemli bir yerleşim alanı olduğunu gösterir.",
+  "Bandırma'nın adı, tarih boyunca liman kenti kimliğiyle birlikte anılmıştır.",
+  "Bandırma'nın höşmerimi ünlüdür.",
+  "Bandırma, Marmara Bölgesi ile Ege Bölgesi arasında geçiş konumunda bulunan önemli ulaşım merkezlerinden biridir.",
+];
 function withTimeout(promise, timeoutMs = 10000) {
   return Promise.race([
     promise,
@@ -77,7 +91,9 @@ export default function HomeScreen({ navigation }) {
   const [earthquakes, setEarthquakes] = useState([]);
   const [news,        setNews]        = useState([]);
   const [loading,     setLoading]     = useState(true);
-
+  const [bandirmaFact] = useState(
+  () => BANDIRMA_FACTS[Math.floor(Math.random() * BANDIRMA_FACTS.length)]
+);
   
   const dotScale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -197,15 +213,23 @@ const topNews  = news.slice(0, 3);
 </Pressable>
 </View>
 
-          <View style={styles.weatherBody}>
-            <View>
-              <Text style={styles.tempText}>{loading ? '--°C' : temp}</Text>
-              <Text style={styles.descText}>{loading ? 'Yükleniyor...' : cut(desc, 22)}</Text>
-              <Text style={styles.dateText}>{todayDate}</Text>
-              <Text style={styles.humidText}>{loading ? '' : humidity}</Text>
-            </View>
-            <Text style={styles.weatherEmoji}>⛅</Text>
-          </View>
+<View style={styles.weatherBody}>
+  <View style={styles.weatherInfo}>
+    <Text style={styles.tempText}>{loading ? '--°C' : temp}</Text>
+    <Text style={styles.descText}>{loading ? 'Yükleniyor...' : cut(desc, 22)}</Text>
+    <Text style={styles.dateText}>{todayDate}</Text>
+    <Text style={styles.humidText}>{loading ? '' : humidity}</Text>
+  </View>
+
+  <View style={styles.factBox}>
+    <Text style={styles.factTitle}>📍 BANDIRMA BİLGİSİ</Text>
+    <Text style={styles.factText} numberOfLines={3}>
+      {bandirmaFact}
+    </Text>
+  </View>
+
+  <Text style={styles.weatherEmoji}>⛅</Text>
+</View>
         </ScalePressable>
       </FadeSlide>
 
@@ -423,14 +447,41 @@ logoutIcon: {
   cityLabel:{ fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: 2 },
   appLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.6)', letterSpacing: 1.5 },
   weatherBody: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 20,
+  },
+  weatherInfo: {
+  minWidth: 170,
   },
   tempText:  { fontSize: 52, fontWeight: '900', color: '#fff', letterSpacing: -2, lineHeight: 56 },
   descText:  { fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.8)', marginTop: 4, textTransform: 'capitalize' },
   dateText:  { fontSize: 13, color: 'rgba(255,255,255,0.72)', marginTop: 3, fontWeight: '500', textTransform: 'capitalize' },
   humidText: { fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 3, fontWeight: '500' },
   weatherEmoji: { fontSize: 72, lineHeight: 80 },
+factBox: {
+  flex: 1,
+  maxWidth: 560,
+  paddingVertical: 12,
+  paddingHorizontal: 16,
+  borderRadius: 14,
+  backgroundColor: 'rgba(255,255,255,0.13)',
+  borderWidth: 1,
+  borderColor: 'rgba(255,255,255,0.16)',
+},
 
+factTitle: {
+  fontSize: 10,
+  fontWeight: '800',
+  color: 'rgba(255,255,255,0.78)',
+  letterSpacing: 1,
+  marginBottom: 4,
+},
+
+factText: {
+  fontSize: 12,
+  fontWeight: '500',
+  color: '#FFFFFF',
+  lineHeight: 17,
+},
   /* ── Bölüm ── */
   section: { marginHorizontal: H_PAD, marginTop: 24 },
   sectionHeader: {
