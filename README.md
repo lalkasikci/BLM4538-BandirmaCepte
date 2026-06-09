@@ -7,4 +7,6 @@
 https://drive.google.com/file/d/1SZL8g9apVVAu594TVEFCJx9vbgVKjG7D/view?usp=drivesdk
 7. hafta : https://drive.google.com/file/d/1LvOAcKsixZLyLbDFCDJE-fFU8W-qzIP2/view?usp=sharing
 8. hafta: https://drive.google.com/file/d/1SSN96fV0ho1uGXnwdygrRli8ja8Q4CKJ/view?usp=sharing
-Klasör : https://drive.google.com/drive/folders/1vnIZPsAmdmEVKKwcczJLGFxcaPVtdW1Q?usp=sharing
+9. hafta: https://drive.google.com/file/d/1HMWw9QuVel-_NbQMGhOMvo9bbOZ4vGBp/view?usp=sharing
+10. hafta: https://drive.google.com/file/d/1J5mV55lsU4U_WecaJ_krCdjqGQCiqOEW/view?usp=sharing
+Tüm Videolar : https://drive.google.com/drive/folders/1vnIZPsAmdmEVKKwcczJLGFxcaPVtdW1Q?usp=sharing
