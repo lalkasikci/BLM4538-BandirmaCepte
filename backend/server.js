@@ -369,49 +369,6 @@ function extractImage(item) {
   return match ? match[1] : "";
 }
 
-// ----------------------------------------------------
-// HABERLER
-// ----------------------------------------------------
-
-app.get("/news", async (req, res) => {
-  try {
-    const rssUrl = "https://www.pandermos.com/rss/";
-
-    const response = await axios.get(rssUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-      },
-      timeout: 10000,
-    });
-
-    const feed = await rssParser.parseString(response.data);
-
-    const news = (feed.items || []).slice(0, 20).map((item, index) => ({
-      id: item.guid || item.link || String(index),
-      title: item.title || "Başlık bulunamadı",
-      summary: cleanHtml(
-        item.contentEncoded ||
-        item.content ||
-        item.summary ||
-        item.contentSnippet ||
-        ""
-      ),
-      link: item.link || "",
-      image: extractImage(item),
-      publishedAt: item.pubDate || item.isoDate || "",
-      source: feed.title || "Pandermos",
-    }));
-
-    return res.json(news);
-  } catch (error) {
-    console.log("NEWS ERROR:", error.message);
-
-    return res.status(500).json({
-      message: "Haber verileri alınamadı.",
-      error: error.message,
-    });
-  }
-});
 
 // ----------------------------------------------------
 // DEPREMLER - KANDİLLİ RASATHANESİ
@@ -734,7 +691,508 @@ app.get("/events", async (req, res) => {
     });
   }
 });
+// ----------------------------------------------------
+// OTOBÜS HATLARI VE KALKIŞ SAATLERİ
+// ----------------------------------------------------
 
+const BUS_LIST_URL =
+  "https://www.bandirmaulasim.com/yolculuk/kalkis-saatleri.html";
+
+const BUS_CACHE_DURATION_MS =
+  30 * 60 * 1000;
+
+let cachedBusLines = [];
+let cachedBusLinesUpdatedAt = null;
+
+function normalizeBusText(text) {
+  return String(text || "")
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeBusLabel(text) {
+  return normalizeBusText(text)
+    .toLocaleUpperCase("tr-TR")
+    .replace(/İ/g, "I")
+    .replace(/Ş/g, "S")
+    .replace(/Ğ/g, "G")
+    .replace(/Ü/g, "U")
+    .replace(/Ö/g, "O")
+    .replace(/Ç/g, "C");
+}
+
+function extractBusTimes(text) {
+  const matches =
+    String(text || "").match(
+      /\b(?:[01]\d|2[0-3]):[0-5]\d\b/g
+    ) || [];
+
+  return [...new Set(matches)].sort(
+    (firstTime, secondTime) => {
+      const [firstHour, firstMinute] =
+        firstTime.split(":").map(Number);
+
+      const [secondHour, secondMinute] =
+        secondTime.split(":").map(Number);
+
+      return (
+        firstHour * 60 +
+        firstMinute -
+        (secondHour * 60 + secondMinute)
+      );
+    }
+  );
+}
+
+function detectBusDayType(text) {
+  const normalized =
+    normalizeBusLabel(text);
+
+  if (
+    normalized.includes("HAFTA ICI") ||
+    normalized.includes("HAFTAICI") ||
+    normalized.includes("PAZARTESI") ||
+    normalized.includes("CUMA")
+  ) {
+    return "weekday";
+  }
+
+  if (
+    normalized.includes("CUMARTESI")
+  ) {
+    return "saturday";
+  }
+
+  if (
+    normalized.includes("PAZAR")
+  ) {
+    return "sunday";
+  }
+
+  return null;
+}
+
+function mergeBusTimes(
+  currentTimes,
+  newTimes
+) {
+  return extractBusTimes([
+    ...currentTimes,
+    ...newTimes,
+  ].join(" "));
+}
+
+function getAbsoluteBusUrl(href) {
+  return new URL(
+    href,
+    BUS_LIST_URL
+  ).href;
+}
+
+function parseBusLineId(
+  name,
+  index
+) {
+  const match =
+    normalizeBusText(name).match(/^(\d+)/);
+
+  return match
+    ? match[1]
+    : String(index + 1);
+}
+
+function parseBusLinePage(
+  html,
+  lineInfo
+) {
+  const $ = cheerio.load(html);
+
+  const result = {
+    id: lineInfo.id,
+    name: lineInfo.name,
+    route: lineInfo.route,
+    detailUrl: lineInfo.detailUrl,
+    weekday: [],
+    saturday: [],
+    sunday: [],
+  };
+
+  $("table").each((_, table) => {
+    const tableText =
+      normalizeBusText($(table).text());
+
+    const previousHeading =
+      normalizeBusText(
+        $(table)
+          .prevAll(
+            "h1, h2, h3, h4, h5, strong, b, p"
+          )
+          .first()
+          .text()
+      );
+
+    const dayType =
+      detectBusDayType(
+        `${previousHeading} ${tableText}`
+      );
+
+    const times =
+      extractBusTimes(tableText);
+
+    if (
+      dayType &&
+      times.length > 0
+    ) {
+      result[dayType] =
+        mergeBusTimes(
+          result[dayType],
+          times
+        );
+    }
+  });
+
+  $("tr").each((_, row) => {
+    const rowText =
+      normalizeBusText($(row).text());
+
+    const dayType =
+      detectBusDayType(rowText);
+
+    const times =
+      extractBusTimes(rowText);
+
+    if (
+      dayType &&
+      times.length > 0
+    ) {
+      result[dayType] =
+        mergeBusTimes(
+          result[dayType],
+          times
+        );
+    }
+  });
+
+  const bodyText =
+    normalizeBusText(
+      $("body").text()
+    );
+
+  const daySections = [
+    {
+      key: "weekday",
+      markers: [
+        "HAFTA İÇİ",
+        "HAFTA ICI",
+        "HAFTAİÇİ",
+      ],
+    },
+    {
+      key: "saturday",
+      markers: [
+        "CUMARTESİ",
+        "CUMARTESI",
+      ],
+    },
+    {
+      key: "sunday",
+      markers: [
+        "PAZAR",
+      ],
+    },
+  ];
+
+  const normalizedBody =
+    normalizeBusLabel(bodyText);
+
+  for (
+    let index = 0;
+    index < daySections.length;
+    index += 1
+  ) {
+    const currentSection =
+      daySections[index];
+
+    const possibleIndexes =
+      currentSection.markers
+        .map((marker) =>
+          normalizedBody.indexOf(
+            normalizeBusLabel(marker)
+          )
+        )
+        .filter(
+          (position) => position >= 0
+        );
+
+    if (possibleIndexes.length === 0) {
+      continue;
+    }
+
+    const startIndex =
+      Math.min(...possibleIndexes);
+
+    const nextSectionIndexes =
+      daySections
+        .slice(index + 1)
+        .flatMap((section) =>
+          section.markers.map(
+            (marker) =>
+              normalizedBody.indexOf(
+                normalizeBusLabel(marker),
+                startIndex + 1
+              )
+          )
+        )
+        .filter(
+          (position) =>
+            position > startIndex
+        );
+
+    const endIndex =
+      nextSectionIndexes.length > 0
+        ? Math.min(
+            ...nextSectionIndexes
+          )
+        : bodyText.length;
+
+    const sectionText =
+      bodyText.slice(
+        startIndex,
+        endIndex
+      );
+
+    const sectionTimes =
+      extractBusTimes(sectionText);
+
+    if (sectionTimes.length > 0) {
+      result[currentSection.key] =
+        mergeBusTimes(
+          result[currentSection.key],
+          sectionTimes
+        );
+    }
+  }
+
+  const totalTimeCount =
+    result.weekday.length +
+    result.saturday.length +
+    result.sunday.length;
+
+  if (totalTimeCount === 0) {
+    const fallbackTimes =
+      extractBusTimes(bodyText);
+
+    result.weekday =
+      fallbackTimes;
+  }
+
+  return result;
+}
+
+async function fetchBusLinePage(
+  lineInfo
+) {
+  const response = await axios.get(
+    lineInfo.detailUrl,
+    {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Accept: "text/html,*/*",
+      },
+
+      timeout: 12000,
+    }
+  );
+
+  return parseBusLinePage(
+    response.data,
+    lineInfo
+  );
+}
+
+async function fetchBusLinesFromWebsite() {
+  console.log(
+    "Otobüs hatları alınıyor: Bandırma Ulaşım"
+  );
+
+  const response = await axios.get(
+    BUS_LIST_URL,
+    {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Accept: "text/html,*/*",
+      },
+
+      timeout: 12000,
+    }
+  );
+
+  const $ =
+    cheerio.load(response.data);
+
+  const lineLinks = [];
+
+  $("td.list-title a").each(
+    (index, element) => {
+      const name =
+        normalizeBusText(
+          $(element).text()
+        );
+
+      const href =
+        $(element).attr("href");
+
+      if (!href || !name) {
+        return;
+      }
+
+      const id =
+        parseBusLineId(
+          name,
+          index
+        );
+
+      lineLinks.push({
+        id,
+        name,
+        route: name.replace(
+          /^\d+\s*-\s*/,
+          ""
+        ),
+        detailUrl:
+          getAbsoluteBusUrl(href),
+      });
+    }
+  );
+
+  if (lineLinks.length === 0) {
+    throw new Error(
+      "Otobüs hat listesi bulunamadı."
+    );
+  }
+
+  const lines = [];
+  const failedLines = [];
+
+  for (
+    const lineInfo of lineLinks
+  ) {
+    try {
+      console.log(
+        `Otobüs hattı çekiliyor: ${lineInfo.name}`
+      );
+
+      const line =
+        await fetchBusLinePage(
+          lineInfo
+        );
+
+      lines.push(line);
+    } catch (error) {
+      console.log(
+        `OTOBÜS HATTI HATASI: ${lineInfo.name}`,
+        error.message
+      );
+
+      failedLines.push(
+        lineInfo.name
+      );
+    }
+  }
+
+  if (lines.length === 0) {
+    throw new Error(
+      "Hiçbir otobüs hattı alınamadı."
+    );
+  }
+
+  return {
+    lines,
+    failedLines,
+  };
+}
+
+app.get(
+  "/bus-lines",
+  async (req, res) => {
+    const cacheIsFresh =
+      cachedBusLines.length > 0 &&
+      cachedBusLinesUpdatedAt &&
+      Date.now() -
+        new Date(
+          cachedBusLinesUpdatedAt
+        ).getTime() <
+        BUS_CACHE_DURATION_MS;
+
+    if (cacheIsFresh) {
+      return res.json({
+        source:
+          "Bandırma Ulaşım A.Ş. - Önbellek",
+        updatedAt:
+          cachedBusLinesUpdatedAt,
+        warning: "",
+        lines: cachedBusLines,
+      });
+    }
+
+    try {
+      const {
+        lines,
+        failedLines,
+      } =
+        await fetchBusLinesFromWebsite();
+
+      cachedBusLines = lines;
+
+      cachedBusLinesUpdatedAt =
+        new Date().toISOString();
+
+      return res.json({
+        source:
+          "Bandırma Ulaşım A.Ş.",
+        updatedAt:
+          cachedBusLinesUpdatedAt,
+
+        warning:
+          failedLines.length > 0
+            ? `${failedLines.length} hattın canlı verisi alınamadı.`
+            : "",
+
+        lines,
+      });
+    } catch (error) {
+      console.log(
+        "OTOBÜS VERİ HATASI:",
+        error.message
+      );
+
+      if (
+        cachedBusLines.length > 0
+      ) {
+        return res.json({
+          source:
+            "Bandırma Ulaşım A.Ş. - Son başarılı kayıt",
+
+          updatedAt:
+            cachedBusLinesUpdatedAt,
+
+          warning:
+            "Canlı otobüs verilerine ulaşılamadı. Son başarılı kayıtlar gösteriliyor.",
+
+          lines:
+            cachedBusLines,
+        });
+      }
+
+      return res.status(503).json({
+        message:
+          "Otobüs saatlerine şu anda ulaşılamıyor.",
+        lines: [],
+      });
+    }
+  }
+);
 // ----------------------------------------------------
 // BACKEND BAŞLATMA
 // ----------------------------------------------------

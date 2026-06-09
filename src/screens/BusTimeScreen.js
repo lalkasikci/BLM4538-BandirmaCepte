@@ -4,6 +4,7 @@ import React, {
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,9 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { busLines } from "../data/busTimes";
+import {
+  getBusLines,
+} from "../services/busService";
 import {
   getFavoriteBusLineIds,
   toggleFavoriteBusLine,
@@ -22,7 +25,17 @@ export default function BusTimeScreen({
 }) {
   const [favoriteIds, setFavoriteIds] =
     useState([]);
+  const [busLines, setBusLines] =
+  useState([]);
 
+const [busLoading, setBusLoading] =
+  useState(true);
+
+const [busWarning, setBusWarning] =
+  useState("");
+
+const [busSource, setBusSource] =
+  useState("");
   const today = new Date().getDay();
 
   function getTodayType() {
@@ -46,12 +59,48 @@ export default function BusTimeScreen({
 
       setFavoriteIds(savedFavoriteIds);
     }, []);
+    const loadBusLines =
+  useCallback(async () => {
+    try {
+      setBusLoading(true);
 
+      const result =
+        await getBusLines();
+
+      setBusLines(
+        result.lines || []
+      );
+
+      setBusWarning(
+        result.warning || ""
+      );
+
+      setBusSource(
+        result.source || ""
+      );
+    } catch (error) {
+      console.log(
+        "OTOBÜS EKRANI HATASI:",
+        error.message
+      );
+
+      setBusLines([]);
+      setBusWarning(
+        "Otobüs saatleri yüklenemedi."
+      );
+    } finally {
+      setBusLoading(false);
+    }
+  }, []);
   useFocusEffect(
-    useCallback(() => {
-      loadFavorites();
-    }, [loadFavorites])
-  );
+  useCallback(() => {
+    loadFavorites();
+    loadBusLines();
+  }, [
+    loadFavorites,
+    loadBusLines,
+  ])
+);
 
   async function handleToggleFavorite(lineId) {
     try {
@@ -222,6 +271,19 @@ export default function BusTimeScreen({
       <Text style={styles.subtitle}>
         Bandırma şehir içi otobüs hatları
       </Text>
+      {busSource ? (
+  <Text style={styles.sourceText}>
+    Veri kaynağı: {busSource}
+  </Text>
+) : null}
+
+{busWarning ? (
+  <View style={styles.warningBox}>
+    <Text style={styles.warningText}>
+      {busWarning}
+    </Text>
+  </View>
+) : null}
 
       <View style={styles.favoriteSection}>
         <View style={styles.sectionHeader}>
@@ -326,11 +388,28 @@ export default function BusTimeScreen({
         )}
       </View>
 
-      <Text style={styles.allLinesTitle}>
-        Tüm Hatlar
-      </Text>
+<Text style={styles.allLinesTitle}>
+  Tüm Hatlar
+</Text>
 
-      {busLines.map(renderBusLineCard)}
+{busLoading ? (
+  <View style={styles.loadingArea}>
+    <ActivityIndicator
+      size="small"
+      color="#5361FF"
+    />
+
+    <Text style={styles.loadingText}>
+      Güncel otobüs saatleri yükleniyor...
+    </Text>
+  </View>
+) : busLines.length > 0 ? (
+  busLines.map(renderBusLineCard)
+) : (
+  <Text style={styles.noScheduleText}>
+    Otobüs saatleri bulunamadı.
+  </Text>
+)}
     </ScrollView>
   );
 }
@@ -581,4 +660,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: "italic",
   },
+  sourceText: {
+  color: "#64748B",
+  fontSize: 11,
+  fontWeight: "700",
+  marginBottom: 12,
+  textAlign: "center",
+},
+
+warningBox: {
+  backgroundColor: "#FFF7ED",
+  borderRadius: 14,
+  marginBottom: 14,
+  padding: 12,
+},
+
+warningText: {
+  color: "#9A3412",
+  fontSize: 12,
+  fontWeight: "600",
+  lineHeight: 18,
+},
+
+loadingArea: {
+  alignItems: "center",
+  backgroundColor: "#FFFFFF",
+  borderRadius: 16,
+  justifyContent: "center",
+  padding: 20,
+},
+
+loadingText: {
+  color: "#64748B",
+  fontSize: 13,
+  fontWeight: "600",
+  marginTop: 10,
+},
 });
