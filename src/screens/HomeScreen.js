@@ -209,26 +209,41 @@ const topNews  = news.slice(0, 3);
   }}
   accessibilityLabel="Çıkış yap"
 >
-  <Text style={styles.logoutIcon}>⏻</Text>
+  <Text style={styles.logoutIcon}>↪</Text>
 </Pressable>
 </View>
 
+
 <View style={styles.weatherBody}>
   <View style={styles.weatherInfo}>
-    <Text style={styles.tempText}>{loading ? '--°C' : temp}</Text>
-    <Text style={styles.descText}>{loading ? 'Yükleniyor...' : cut(desc, 22)}</Text>
-    <Text style={styles.dateText}>{todayDate}</Text>
-    <Text style={styles.humidText}>{loading ? '' : humidity}</Text>
-  </View>
+    <Text style={styles.tempText}>
+      {loading ? '--°C' : temp}
+    </Text>
 
-  <View style={styles.factBox}>
-    <Text style={styles.factTitle}>📍 BANDIRMA BİLGİSİ</Text>
-    <Text style={styles.factText} numberOfLines={3}>
-      {bandirmaFact}
+    <Text style={styles.descText}>
+      {loading ? 'Yükleniyor...' : cut(desc, 22)}
+    </Text>
+
+    <Text style={styles.dateText}>
+      {todayDate}
+    </Text>
+
+    <Text style={styles.humidText}>
+      {loading ? '' : humidity}
     </Text>
   </View>
 
   <Text style={styles.weatherEmoji}>⛅</Text>
+</View>
+
+<View style={styles.factBox}>
+  <Text style={styles.factTitle}>
+    📍 BANDIRMA BİLGİSİ
+  </Text>
+
+  <Text style={styles.factText}>
+    {bandirmaFact}
+  </Text>
 </View>
         </ScalePressable>
       </FadeSlide>
@@ -447,10 +462,10 @@ logoutIcon: {
   cityLabel:{ fontSize: 14, fontWeight: '900', color: '#fff', letterSpacing: 2 },
   appLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.6)', letterSpacing: 1.5 },
   weatherBody: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 20,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12,
   },
   weatherInfo: {
-  minWidth: 170,
+  flex: 1,
   },
   tempText:  { fontSize: 52, fontWeight: '900', color: '#fff', letterSpacing: -2, lineHeight: 56 },
   descText:  { fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.8)', marginTop: 4, textTransform: 'capitalize' },
@@ -458,14 +473,11 @@ logoutIcon: {
   humidText: { fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 3, fontWeight: '500' },
   weatherEmoji: { fontSize: 72, lineHeight: 80 },
 factBox: {
-  flex: 1,
-  maxWidth: 560,
-  paddingVertical: 12,
-  paddingHorizontal: 16,
-  borderRadius: 14,
-  backgroundColor: 'rgba(255,255,255,0.13)',
-  borderWidth: 1,
-  borderColor: 'rgba(255,255,255,0.16)',
+  marginTop: 18,
+  paddingTop: 14,
+  paddingBottom: 2,
+  borderTopWidth: 1,
+  borderTopColor: 'rgba(255,255,255,0.20)',
 },
 
 factTitle: {

@@ -1,4 +1,4 @@
-export const API_BASE_URL = "http://localhost:3000";
+export const API_BASE_URL = "http://10.147.24.98:3000";
 
 export const EVENTS_API_URL = `${API_BASE_URL}/events`;
 

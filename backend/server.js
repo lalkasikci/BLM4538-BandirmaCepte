@@ -739,6 +739,6 @@ app.get("/events", async (req, res) => {
 // BACKEND BAŞLATMA
 // ----------------------------------------------------
 
-app.listen(PORT, () => {
-  console.log(`Backend çalışıyor: http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Backend çalışıyor: http://0.0.0.0:${PORT}`);
 });
